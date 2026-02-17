@@ -28,5 +28,6 @@ namespace JwtAuth.Shared.Options
         {
             PropertyNamingPolicy = null
         };
+        public double ClockSkewSeconds { get; set; }
     }
 }

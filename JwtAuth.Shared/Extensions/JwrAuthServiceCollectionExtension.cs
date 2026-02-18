@@ -121,13 +121,11 @@ namespace JwtAuth.Shared.Extensions
                                 http.Request.Headers.ContainsKey("Authorization"));
                             return Task.CompletedTask;
                         }
-                    };
-
+                    }; 
                 });
 
             services.AddAuthorization(options =>
-            {
-
+            { 
                 if (sharedOptions.AddsharedPolicies)
                     return;
 

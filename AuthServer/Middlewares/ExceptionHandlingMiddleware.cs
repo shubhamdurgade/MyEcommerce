@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Text.Json;
 using AuthServer.Common.Results;
+using AuthServer.Common.Exceptions;
 namespace AuthServer.Middlewares
 {
     public class ExceptionHandlingMiddleware

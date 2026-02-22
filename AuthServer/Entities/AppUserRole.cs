@@ -10,6 +10,8 @@
 
         public Guid RoleId { get; set; } = default!;
 
+        public AppRole Role { get; set; } = default!;
+
         public Guid? AssignedByUserId { get; set; }
 
         public DateTime AssignedUtc { get; set; }

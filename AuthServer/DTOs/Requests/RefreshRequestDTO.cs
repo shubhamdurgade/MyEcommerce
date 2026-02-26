@@ -11,6 +11,9 @@ namespace AuthServer.DTOs.Requests
         public string ClientSecret { get; set; } = default!;
 
         [Required(ErrorMessage = "RefreshToken is required")]
-        public string RefreshToken { get; set; } = default!; 
+        public string RefreshToken { get; set; } = default!;
+
+        [Required(ErrorMessage = "Device is required")]
+        public string DeviceId { get; set; } = default!;
     }
 }

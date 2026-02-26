@@ -87,7 +87,7 @@ namespace AuthServer.Data
             modelBuilder.Entity<RefreshToken>()
                 .HasOne(x => x.ParentToken)
                 .WithMany()
-                .HasForeignKey(x => x.ParentTokenID)
+                .HasForeignKey(x => x.ParentTokenId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<RefreshToken>()

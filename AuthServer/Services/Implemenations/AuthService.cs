@@ -181,9 +181,126 @@ namespace AuthServer.Services.Implemenations
             throw new NotImplementedException();
         }
 
-        public Task<TokenResponseDTO> RefreshAsync(RefreshRequestDTO dto, HttpContext httpContext)
+        public async Task<TokenResponseDTO> RefreshAsync(RefreshRequestDTO dto, HttpContext httpContext)
         {
-            throw new NotImplementedException();
+            try
+            {
+                var client = await ValidateClientCredentialAsync(dto.ClientId, dto.ClientSecret);
+
+                var tokenHash = _refreshTokenService.HashToken(dto.RefreshToken);
+                await using var tx = await _dbDbContext.Database.BeginTransactionAsync();
+
+                var existing = await _dbDbContext.RefreshTokens
+                                    .Include(rt => rt.Session)
+                                    .ThenInclude(s => s.User)
+                                .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash);
+
+                if (existing == null)
+                    throw new AppException("Invalid refresh token.", 401);
+
+                if (existing.Session == null)
+                    throw new AppException("Invalid refresh token session.", 401);
+
+                if(existing.Session.ClientAppId != client.Id)
+                    throw new AppException("Refresh token does not match this client application.", 401);
+
+                if (existing.Session.RevokedUtc != null)
+                    throw new AppException("Refresh token does not match this device.", 401);   
+
+                if(!string.Equals(existing.Session.DeviceId, dto.DeviceId, StringComparison.Ordinal))
+                    throw new AppException("Refresh token does not match this device.", 401);
+
+                if(existing.Session.User == null || !existing.Session.User.IsActive)
+                    throw new AppException("User account is not active.", 401);
+
+                if (existing.IsRevoked)
+                {
+                    existing.Session.RevokedUtc = DateTime.UtcNow;
+
+                    var activeSessionToken = await _dbDbContext.RefreshTokens
+                        .Where(x => x.SessionId == existing.SessionId && !x.IsRevoked)
+                        .ToListAsync();
+
+                    foreach (var token in activeSessionToken)
+                    {
+                        token.RevokedUtc = DateTime.UtcNow;
+                        token.RevokedReason = "ReuseDetected";
+                    }
+                     
+                    await _dbDbContext.SaveChangesAsync();
+                    await tx.CommitAsync(); 
+
+                    _logger.LogWarning("Refresh token reuse detected. All tokens for the session revoked. SessionId={SessionId}, UserId={UserId}, ClientId={ClientId}, DeviceId={DeviceId}",
+                        existing.SessionId, existing.Session.UserId, client.Id, dto.DeviceId);
+
+                    throw new AppException("Refresh token reuse detected.Please login again.", 401);
+                }
+
+                if(existing.IsExpired)
+                    throw new AppException("Refresh token has expired. Please login again.", 401);
+
+                var newRawRefreshToken = _refreshTokenService.GenerateRawToken();
+                var newRefreshTokenHash = _refreshTokenService.HashToken(newRawRefreshToken);
+                var expiredAtUtc = _refreshTokenService.GetExpiryUtc();
+
+                var newEntity  = new RefreshToken
+                {
+                    Id = Guid.NewGuid(),
+                    SessionId = existing.SessionId,
+                    TokenHash = newRefreshTokenHash,
+                    ParentTokenId = existing.Id,
+                    CreatedUtc = DateTime.UtcNow,
+                    ExpiresUtc = expiredAtUtc
+                };
+
+                existing.RevokedUtc = DateTime.UtcNow;
+                existing.RevokedReason = "Rotated";
+                existing.ReplaceByTokenId = newEntity.Id;
+
+                _dbDbContext.RefreshTokens.Add(newEntity);
+
+                existing.Session.LastSeenUtc = DateTime.UtcNow;
+                
+                existing.Session.IpAddress = httpContext.Connection.RemoteIpAddress?.ToString();
+                
+                existing.Session.UserAgent = httpContext.Request.Headers.UserAgent.ToString();
+                
+                (string? IpAddress, string location) = await GetLocationAsync(existing.Session.IpAddress);
+                
+                existing.Session.IpAddress = IpAddress;
+                existing.Session.LoginLocation = location;
+
+                var roles = await _dbDbContext.UserRoles
+                    .Where(ur => ur.UserId == existing.Session.UserId)
+                    .Join(_dbDbContext.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name)
+                    .ToListAsync();
+
+                var (jwt, jwtExp) = _jwtTokenService.CreateAccessToken(existing.Session.User!, roles, dto.ClientId, existing.SessionId);
+
+                await _dbDbContext.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                _logger.LogInformation("Refresh token rotated. SessionId={SessionId}, UserId={UserId}, ClientId={ClientId}, DeviceId={DeviceId}",
+                    existing.SessionId, existing.Session.UserId, client.Id, dto.DeviceId);
+
+                return new TokenResponseDTO
+                {
+                    AccessTokenExperisUtc = jwtExp,
+                    AccesToken = jwt,
+                    RefreshToken = newRawRefreshToken,
+                    RefreshTokenExperisUtcUtc = newEntity.ExpiresUtc,
+                    SessionId = existing.SessionId
+                };
+            }
+            catch(AppException ex)
+            {
+                throw;
+            }
+            catch(Exception ex)
+            {
+                _logger.LogError(ex, "Refresh failed. ClientId={ClientId}, DeviceId={DeviceId}", dto.ClientId, dto.DeviceId);
+                throw new AppException("Unable to refresh token. Please try again.", 500);
+            }
         }
 
 

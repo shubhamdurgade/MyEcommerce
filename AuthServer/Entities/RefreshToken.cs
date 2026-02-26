@@ -13,7 +13,7 @@ namespace AuthServer.Entities
         [MaxLength(200)]
         public string TokenHash { get; set; } = default!;
 
-        public Guid? ParentTokenID { get; set; }
+        public Guid? ParentTokenId { get; set; }
 
         public RefreshToken? ParentToken { get; set; }
 

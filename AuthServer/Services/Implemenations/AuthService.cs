@@ -174,9 +174,24 @@ namespace AuthServer.Services.Implemenations
             }
         }
 
-        public Task<List<SessionResponseDTO>> GetMySessionAsync(Guid userId)
+        public async Task<List<SessionResponseDTO>> GetMySessionAsync(Guid userId)
         {
-            throw new NotImplementedException();
+            var sessions = await _dbContext.UserSessions
+                            .AsNoTracking()
+                            .Where(us => us.UserId == userId && us.RevokedUtc == null)
+                            .OrderByDescending(s => s.LastSeenUtc)
+                            .ToListAsync();
+
+            return sessions.Select(s => new SessionResponseDTO
+            {
+                SessionId = s.Id,
+                DeviceId = s.DeviceId ,
+                IpAddress = s.IpAddress,
+                LoginLocation = s.LoginLocation,
+                UserAgent = s.UserAgent,
+                LastSeenUtc = s.LastSeenUtc,
+                IsActive = s.IsActive
+            }).ToList();
         }
         
         public async Task LogoutAsync(LogoutRequestDTO dto)
@@ -402,9 +417,28 @@ namespace AuthServer.Services.Implemenations
             }
         }
 
-        public Task RevokeSessionAsync(Guid userId, Guid sessionId, string reason)
+        public async Task RevokeSessionAsync(Guid userId, Guid sessionId, string reason)
         {
-            throw new NotImplementedException();
+            var session = await _dbContext.UserSessions
+                .FirstOrDefaultAsync(s => s.Id == sessionId && s.UserId == userId);
+
+            if (session == null)
+                throw new AppException("Session not found.", 404);
+
+            session.RevokedUtc = DateTime.UtcNow;
+
+            var tokens = await _dbContext.RefreshTokens
+                        .Where(rt => rt.SessionId == sessionId && rt.RevokedUtc == null)
+                        .ToListAsync();
+
+            foreach(var t in tokens)
+            {
+                t.RevokedUtc = DateTime.UtcNow;
+                t.RevokedReason= reason;
+            }
+
+            await _dbContext.SaveChangesAsync();
+            _logger.LogInformation("Session revoked. Session = {SessionId}, Reason{Reason}", sessionId, reason); 
         }
 
         private async Task<ClientApp> ValidateClientCredentialAsync(string clientId, string clientSecret)

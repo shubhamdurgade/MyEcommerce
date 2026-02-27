@@ -7,6 +7,7 @@ using AuthServer.Security;
 using AuthServer.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualBasic;
+using System;
 using System.Text.Json;
 using System.Xml;
 
@@ -349,6 +350,55 @@ namespace AuthServer.Services.Implemenations
             {
                 _logger.LogError(ex, "Refresh failed. ClientId={ClientId}, DeviceId={DeviceId}", dto.ClientId, dto.DeviceId);
                 throw new AppException("Unable to refresh token. Please try again.", 500);
+            }
+        }
+
+        public async Task LogoutAllAsync(Guid userId)
+        {
+            try
+            {
+                var sessionIds = await _dbContext.UserSessions
+                    .Where(s => s.UserId == userId)
+                    .Select(s => s.Id)
+                    .ToListAsync();
+
+                if(sessionIds.Count == 0)
+                {
+                    _logger.LogInformation("LogoutAllDevice requested but no sessions found. UserId");
+                    return;
+                }
+
+                var now = DateTime.UtcNow;
+
+                var activeSessions = await _dbContext.UserSessions
+                        .Where(s => s.UserId == userId && s.RevokedUtc == null)
+                        .ToListAsync();
+
+                foreach (var t in activeSessions)
+                {
+                    t.RevokedUtc = now; 
+                }
+
+                var activeTokens = await _dbContext.RefreshTokens
+                                .Where(rt => sessionIds.Contains(rt.SessionId) && rt.RevokedUtc == null)
+                                .ToListAsync();
+
+                foreach(var t in activeTokens)
+                {
+                    t.RevokedUtc = now;
+                    t.RevokedReason = "LogoutAllDevices";
+                }
+
+                await _dbContext.SaveChangesAsync();
+
+                _logger.LogInformation("Logout all devices succesfully. UserId={UserId}, SessionRevoked={SessionConut},RevokedToken{RevokedToken}",
+                    userId, activeSessions.Count, activeTokens.Count);
+            }
+            catch (Exception ex) 
+            {
+                _logger.LogInformation(ex,"Logout all devices succesfully. UserId={UserId}",
+                   userId);
+                throw new AppException("Unable to logout from all devices.", 500);
             }
         }
 

@@ -15,5 +15,7 @@ namespace AuthServer.Services.Interfaces
         Task<List<SessionResponseDTO>> GetMySessionAsync(Guid userId);
 
         Task RevokeSessionAsync(Guid userId, Guid sessionId, string reason);
+
+        Task LogoutAllAsync(Guid userId); 
     }
 }

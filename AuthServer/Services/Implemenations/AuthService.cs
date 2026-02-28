@@ -5,11 +5,8 @@ using AuthServer.DTOs.Responses;
 using AuthServer.Entities;
 using AuthServer.Security;
 using AuthServer.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.VisualBasic;
-using System;
-using System.Text.Json;
-using System.Xml;
+using Microsoft.EntityFrameworkCore; 
+using System.Text.Json; 
 
 namespace AuthServer.Services.Implemenations
 {

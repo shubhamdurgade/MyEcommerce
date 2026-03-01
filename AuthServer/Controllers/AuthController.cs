@@ -127,6 +127,7 @@ namespace AuthServer.Controllers
 
         private Guid GetUserId()
         {
+            ClaimsPrincipal user = HttpContext.User;
             var sub = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
 
             if (string.IsNullOrWhiteSpace(sub))

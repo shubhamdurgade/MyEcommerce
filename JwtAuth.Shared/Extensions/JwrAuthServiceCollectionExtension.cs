@@ -113,7 +113,7 @@ namespace JwtAuth.Shared.Extensions
                             var http = context.HttpContext;
 
                             logger.LogWarning(context.Exception,
-                                "JWT authentication failed. Path = {Path}, Method = {Method}, RemoteIP = {RemoteIp}, Scheme",
+                                "JWT authentication failed. Path = {Path}, Method = {Method}, RemoteIP = {RemoteIp}, Scheme={Scheme},Auth={Auth}",
                                 http.Request.Path.Value,
                                 http.Request.Method,
                                 http.Connection.RemoteIpAddress?.ToString(),

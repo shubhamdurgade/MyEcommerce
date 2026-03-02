@@ -21,4 +21,8 @@
     <ProjectReference Include="..\JwtAuth.Shared\JwtAuth.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Migrations\" />
+  </ItemGroup>
+
 </Project>

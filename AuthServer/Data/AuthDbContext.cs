@@ -69,10 +69,10 @@ namespace AuthServer.Data
 
             modelBuilder.Entity<UserSession>()
                 .Property(x => x.CreatedUtc)
-                .HasDefaultValueSql("GETUTCDATE");
+                .HasDefaultValueSql("GETUTCDATE()");
             modelBuilder.Entity<UserSession>()
                 .Property(x => x.LastSeenUtc)
-                .HasDefaultValueSql("GETUTCDATE");
+                .HasDefaultValueSql("GETUTCDATE()");
 
             //Refresh
             modelBuilder.Entity<RefreshToken>()
@@ -97,7 +97,7 @@ namespace AuthServer.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<RefreshToken>()
-                .Property(x => x.CreatedUtc).HasDefaultValueSql("GETUTCDATE");
+                .Property(x => x.CreatedUtc).HasDefaultValueSql("GETUTCDATE()");
 
             Seed(modelBuilder);
         }

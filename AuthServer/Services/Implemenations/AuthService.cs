@@ -116,6 +116,7 @@ namespace AuthServer.Services.Implemenations
                     UserId = user.Id,
                     ClientAppId = client.Id,
                     IpAddress = ipAddress,
+                    DeviceId = dto.DeviceId,
                     LoginLocation = location,
                     UserAgent = userAgent,
                     CreatedUtc = DateTime.UtcNow,
